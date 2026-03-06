@@ -173,6 +173,18 @@
         gap: 10px;
     }
 
+    .jump-calendar-anchor {
+        position: relative;
+        display: flex;
+        align-items: center;
+        isolation: isolate;
+        z-index: 20;
+
+        .jump-date-popover {
+            z-index: 2600;
+        }
+    }
+
     .icon-btn {
         background: var(--bg-tertiary);
         border: 1px solid var(--border-color);
@@ -1089,18 +1101,6 @@
             cursor: pointer;
             color: var(--text-tertiary);
             display: flex;
-        }
-    }
-
-    .jump-calendar-anchor {
-        position: relative;
-        display: flex;
-        align-items: center;
-        isolation: isolate;
-        z-index: 20;
-
-        .jump-date-popover {
-            z-index: 2600;
         }
     }
 
