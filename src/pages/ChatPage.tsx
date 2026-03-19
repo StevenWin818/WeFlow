@@ -3028,18 +3028,19 @@ function ChatPage(props: ChatPageProps) {
         return
       }
       if (result.success && result.messages) {
+        const resultMessages = result.messages
         if (offset === 0) {
-          setMessages(result.messages)
-          persistSessionPreviewCache(sessionId, result.messages)
-          if (result.messages.length === 0) {
+          setMessages(resultMessages)
+          persistSessionPreviewCache(sessionId, resultMessages)
+          if (resultMessages.length === 0) {
             setNoMessageTable(true)
             setHasMoreMessages(false)
           }
 
           // 群聊发送者信息补齐改为非阻塞执行，避免影响首屏切换
           const isGroup = sessionId.includes('@chatroom')
-          if (isGroup && result.messages.length > 0) {
-            const unknownSenders = [...new Set(result.messages
+          if (isGroup && resultMessages.length > 0) {
+            const unknownSenders = [...new Set(resultMessages
               .filter(m => m.isSend !== 1 && m.senderUsername && !senderAvatarCache.has(m.senderUsername))
               .map(m => m.senderUsername as string)
             )]
@@ -3051,7 +3052,7 @@ function ChatPage(props: ChatPageProps) {
           // 日期跳转时滚动到顶部，否则滚动到底部
           requestAnimationFrame(() => {
             if (isDateJumpRef.current) {
-              if (messageVirtuosoRef.current && result.messages.length > 0) {
+              if (messageVirtuosoRef.current && resultMessages.length > 0) {
                 messageVirtuosoRef.current.scrollToIndex({ index: 0, align: 'start', behavior: 'auto' })
               } else if (messageListRef.current) {
                 messageListRef.current.scrollTop = 0
@@ -3060,7 +3061,7 @@ function ChatPage(props: ChatPageProps) {
               return
             }
 
-            const lastIndex = result.messages.length - 1
+            const lastIndex = resultMessages.length - 1
             if (lastIndex >= 0 && messageVirtuosoRef.current) {
               messageVirtuosoRef.current.scrollToIndex({ index: lastIndex, align: 'end', behavior: 'auto' })
             } else if (messageListRef.current) {
@@ -3068,12 +3069,12 @@ function ChatPage(props: ChatPageProps) {
             }
           })
         } else {
-          appendMessages(result.messages, true)
+          appendMessages(resultMessages, true)
 
           // 加载更多也同样处理发送者信息预取
           const isGroup = sessionId.includes('@chatroom')
           if (isGroup) {
-            const unknownSenders = [...new Set(result.messages
+            const unknownSenders = [...new Set(resultMessages
               .filter(m => m.isSend !== 1 && m.senderUsername && !senderAvatarCache.has(m.senderUsername))
               .map(m => m.senderUsername as string)
             )]
@@ -3093,8 +3094,8 @@ function ChatPage(props: ChatPageProps) {
                   return
                 }
               }
-              if (result.messages.length > 0) {
-                messageVirtuosoRef.current.scrollToIndex({ index: result.messages.length, align: 'start', behavior: 'auto' })
+              if (resultMessages.length > 0) {
+                messageVirtuosoRef.current.scrollToIndex({ index: resultMessages.length, align: 'start', behavior: 'auto' })
               }
               return
             }
@@ -3120,7 +3121,7 @@ function ChatPage(props: ChatPageProps) {
         }
         const nextOffset = typeof result.nextOffset === 'number'
           ? result.nextOffset
-          : offset + result.messages.length
+          : offset + resultMessages.length
         setCurrentOffset(nextOffset)
       } else if (!result.success) {
         setNoMessageTable(true)
@@ -5635,6 +5636,8 @@ function ChatPage(props: ChatPageProps) {
   }), [hasMoreMessages, hasMoreLater, isLoadingMore])
 
   const renderMessageListItem = useCallback((index: number, msg: Message) => {
+    if (!currentSession) return null
+
     const prevMsg = index > 0 ? messages[index - 1] : undefined
     const showDateDivider = shouldShowDateDivider(msg, prevMsg)
     const showTime = !prevMsg || (msg.createTime - prevMsg.createTime > 300)
