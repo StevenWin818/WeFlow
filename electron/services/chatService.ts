@@ -4526,8 +4526,8 @@ class ChatService {
   /**
    * 清理拍一拍消息
    * 格式示例:
-   *   纯文本: 我拍了拍 "梨绒" ງ໐໐໓ ຖiງht620000wxid_...
-   *   XML: <msg><appmsg...><title>"有幸"拍了拍"浩天空"相信未来!</title>...</msg>
+   *   纯文本: 我拍了拍 "XX" 
+   *   XML: <msg><appmsg...><title>"XX"拍了拍"XX"相信未来!</title>...</msg>
    */
   private cleanPatMessage(content: string): string {
     if (!content) return '[拍一拍]'
