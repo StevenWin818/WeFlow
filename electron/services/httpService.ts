@@ -1017,13 +1017,31 @@ class HttpService {
   }
 
   private lookupGroupNickname(groupNicknamesMap: Map<string, string>, sender: string): string {
-    if (!sender) return ''
-    const cleaned = this.normalizeAccountId(sender)
-    return groupNicknamesMap.get(sender)
-      || groupNicknamesMap.get(sender.toLowerCase())
-      || groupNicknamesMap.get(cleaned)
-      || groupNicknamesMap.get(cleaned.toLowerCase())
-      || ''
+    const key = String(sender || '').trim().toLowerCase()
+    if (!key) return ''
+    return groupNicknamesMap.get(key) || ''
+  }
+
+  private buildTrustedGroupNicknameMap(nicknames: Record<string, string>): Map<string, string> {
+    const buckets = new Map<string, Set<string>>()
+    for (const [memberIdRaw, nicknameRaw] of Object.entries(nicknames || {})) {
+      const memberId = String(memberIdRaw || '').trim().toLowerCase()
+      const nickname = String(nicknameRaw || '').trim()
+      if (!memberId || !nickname) continue
+      const slot = buckets.get(memberId)
+      if (slot) {
+        slot.add(nickname)
+      } else {
+        buckets.set(memberId, new Set([nickname]))
+      }
+    }
+
+    const trusted = new Map<string, string>()
+    for (const [memberId, nicknameSet] of buckets.entries()) {
+      if (nicknameSet.size !== 1) continue
+      trusted.set(memberId, Array.from(nicknameSet)[0])
+    }
+    return trusted
   }
 
   private resolveChatLabSenderInfo(
@@ -1094,21 +1112,7 @@ class HttpService {
       try {
         const result = await wcdbService.getGroupNicknames(talkerId)
         if (result.success && result.nicknames) {
-          groupNicknamesMap = new Map()
-          for (const [memberIdRaw, nicknameRaw] of Object.entries(result.nicknames)) {
-            const memberId = String(memberIdRaw || '').trim()
-            const nickname = String(nicknameRaw || '').trim()
-            if (!memberId || !nickname) continue
-
-            groupNicknamesMap.set(memberId, nickname)
-            groupNicknamesMap.set(memberId.toLowerCase(), nickname)
-
-            const cleaned = this.normalizeAccountId(memberId)
-            if (cleaned) {
-              groupNicknamesMap.set(cleaned, nickname)
-              groupNicknamesMap.set(cleaned.toLowerCase(), nickname)
-            }
-          }
+          groupNicknamesMap = this.buildTrustedGroupNicknameMap(result.nicknames)
         }
       } catch (e) {
         console.error('[HttpService] Failed to get group nicknames:', e)
@@ -1389,4 +1393,3 @@ class HttpService {
 }
 
 export const httpService = new HttpService()
-

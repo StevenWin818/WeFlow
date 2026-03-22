@@ -257,34 +257,60 @@ class GroupAnalyticsService {
   }
 
   /**
-   * 从 DLL 获取群成员的群昵称
+   * 从后端获取群成员群昵称，并在前端进行唯一性净化防串号。
    */
   private async getGroupNicknamesForRoom(chatroomId: string, candidates: string[] = []): Promise<Map<string, string>> {
-    const nicknameMap = new Map<string, string>()
-
     try {
       const dllResult = await wcdbService.getGroupNicknames(chatroomId)
-      if (dllResult.success && dllResult.nicknames) {
-        this.mergeGroupNicknameEntries(nicknameMap, Object.entries(dllResult.nicknames))
+      if (!dllResult.success || !dllResult.nicknames) {
+        return new Map<string, string>()
       }
+      return this.buildTrustedGroupNicknameMap(Object.entries(dllResult.nicknames), candidates)
     } catch (e) {
       console.error('getGroupNicknamesForRoom dll error:', e)
+      return new Map<string, string>()
     }
+  }
 
-    try {
-      const result = await wcdbService.getChatRoomExtBuffer(chatroomId)
-      if (!result.success || !result.extBuffer) {
-        return nicknameMap
+  private normalizeGroupNicknameIdentity(value: string): string {
+    const raw = String(value || '').trim()
+    if (!raw) return ''
+    return raw.toLowerCase()
+  }
+
+  private buildTrustedGroupNicknameMap(
+    entries: Iterable<[string, string]>,
+    candidates: string[] = []
+  ): Map<string, string> {
+    const candidateSet = new Set(
+      this.buildGroupNicknameIdCandidates(candidates)
+        .map((id) => this.normalizeGroupNicknameIdentity(id))
+        .filter(Boolean)
+    )
+
+    const buckets = new Map<string, Set<string>>()
+    for (const [memberIdRaw, nicknameRaw] of entries) {
+      const identity = this.normalizeGroupNicknameIdentity(memberIdRaw || '')
+      if (!identity) continue
+      if (candidateSet.size > 0 && !candidateSet.has(identity)) continue
+
+      const nickname = this.normalizeGroupNickname(nicknameRaw || '')
+      if (!nickname) continue
+
+      const slot = buckets.get(identity)
+      if (slot) {
+        slot.add(nickname)
+      } else {
+        buckets.set(identity, new Set([nickname]))
       }
-
-      const extBuffer = this.decodeExtBuffer(result.extBuffer)
-      if (!extBuffer) return nicknameMap
-      this.mergeGroupNicknameEntries(nicknameMap, this.parseGroupNicknamesFromExtBuffer(extBuffer, candidates).entries())
-      return nicknameMap
-    } catch (e) {
-      console.error('getGroupNicknamesForRoom error:', e)
-      return nicknameMap
     }
+
+    const trusted = new Map<string, string>()
+    for (const [identity, nicknameSet] of buckets.entries()) {
+      if (nicknameSet.size !== 1) continue
+      trusted.set(identity, Array.from(nicknameSet)[0])
+    }
+    return trusted
   }
 
   private mergeGroupNicknameEntries(
@@ -471,6 +497,16 @@ class GroupAnalyticsService {
       if (cleaned && cleaned !== raw) {
         set.add(cleaned)
       }
+    }
+    return Array.from(set)
+  }
+
+  private buildGroupNicknameIdCandidates(values: Array<string | undefined | null>): string[] {
+    const set = new Set<string>()
+    for (const rawValue of values) {
+      const raw = String(rawValue || '').trim()
+      if (!raw) continue
+      set.add(raw)
     }
     return Array.from(set)
   }
@@ -663,30 +699,23 @@ class GroupAnalyticsService {
   }
 
   private resolveGroupNicknameByCandidates(groupNicknames: Map<string, string>, candidates: string[]): string {
-    const idCandidates = this.buildIdCandidates(candidates)
+    const idCandidates = this.buildGroupNicknameIdCandidates(candidates)
     if (idCandidates.length === 0) return ''
 
+    let resolved = ''
     for (const id of idCandidates) {
-      const exact = this.normalizeGroupNickname(groupNicknames.get(id) || '')
-      if (exact) return exact
-    }
-
-    for (const id of idCandidates) {
-      const lower = id.toLowerCase()
-      let found = ''
-      let matched = 0
-      for (const [key, value] of groupNicknames.entries()) {
-        if (String(key || '').toLowerCase() !== lower) continue
-        const normalized = this.normalizeGroupNickname(value || '')
-        if (!normalized) continue
-        found = normalized
-        matched += 1
-        if (matched > 1) return ''
+      const normalizedId = this.normalizeGroupNicknameIdentity(id)
+      if (!normalizedId) continue
+      const candidateNickname = this.normalizeGroupNickname(groupNicknames.get(normalizedId) || '')
+      if (!candidateNickname) continue
+      if (!resolved) {
+        resolved = candidateNickname
+        continue
       }
-      if (matched === 1 && found) return found
+      if (resolved !== candidateNickname) return ''
     }
 
-    return ''
+    return resolved
   }
 
   private sanitizeWorksheetName(name: string): string {

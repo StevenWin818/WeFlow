@@ -146,33 +146,47 @@ const normalizeReleaseNotes = (rawReleaseNotes: unknown): string => {
 
   if (!merged.trim()) return ''
 
+  const shouldStripReleaseSection = (headingRaw: string): boolean => {
+    const heading = headingRaw.trim().toLowerCase()
+    if (heading === '下载' || heading === 'download') return true
+
+    const compactHeading = heading.replace(/\s+/g, '')
+    if (compactHeading.startsWith('macos安装提示')) return true
+    if (compactHeading.startsWith('mac安装提示')) return true
+    return false
+  }
+
   // 兼容 electron-updater 直接返回 HTML 的场景
   const removeDownloadSectionFromHtml = (input: string): string => {
-    return input.replace(
-      /<h[1-6][^>]*>\s*(?:下载|download)\s*<\/h[1-6]>\s*[\s\S]*?(?=<h[1-6]\b|$)/gi,
-      ''
-    )
+    return input
+      .replace(
+        /<h[1-6][^>]*>\s*(?:下载|download)\s*<\/h[1-6]>\s*[\s\S]*?(?=<h[1-6]\b|$)/gi,
+        ''
+      )
+      .replace(
+        /<h[1-6][^>]*>\s*(?:mac\s*os|mac)\s*安装提示(?:\s*[（(]\s*未知来源\s*[）)])?\s*<\/h[1-6]>\s*[\s\S]*?(?=<h[1-6]\b|$)/gi,
+        ''
+      )
   }
 
   // 兼容 Markdown 场景（Action 最终 release note 模板）
   const removeDownloadSectionFromMarkdown = (input: string): string => {
     const lines = input.split(/\r?\n/)
     const output: string[] = []
-    let skipDownloadSection = false
+    let skipSection = false
 
     for (const line of lines) {
       const headingMatch = line.match(/^\s*#{1,6}\s*(.+?)\s*$/)
       if (headingMatch) {
-        const heading = headingMatch[1].trim().toLowerCase()
-        if (heading === '下载' || heading === 'download') {
-          skipDownloadSection = true
+        if (shouldStripReleaseSection(headingMatch[1])) {
+          skipSection = true
           continue
         }
-        if (skipDownloadSection) {
-          skipDownloadSection = false
+        if (skipSection) {
+          skipSection = false
         }
       }
-      if (!skipDownloadSection) {
+      if (!skipSection) {
         output.push(line)
       }
     }

@@ -5096,12 +5096,33 @@ class ChatService {
       }
 
       // 如果是群聊，尝试获取群昵称
-      let groupNicknames: Record<string, string> = {}
+      const groupNicknames = new Map<string, string>()
       if (chatroomId.endsWith('@chatroom')) {
         const nickResult = await wcdbService.getGroupNicknames(chatroomId)
         if (nickResult.success && nickResult.nicknames) {
-          groupNicknames = nickResult.nicknames
+          const nicknameBuckets = new Map<string, Set<string>>()
+          for (const [memberIdRaw, nicknameRaw] of Object.entries(nickResult.nicknames)) {
+            const memberId = String(memberIdRaw || '').trim().toLowerCase()
+            const nickname = String(nicknameRaw || '').trim()
+            if (!memberId || !nickname) continue
+            const slot = nicknameBuckets.get(memberId)
+            if (slot) {
+              slot.add(nickname)
+            } else {
+              nicknameBuckets.set(memberId, new Set([nickname]))
+            }
+          }
+          for (const [memberId, nicknameSet] of nicknameBuckets.entries()) {
+            if (nicknameSet.size !== 1) continue
+            groupNicknames.set(memberId, Array.from(nicknameSet)[0])
+          }
         }
+      }
+
+      const lookupGroupNickname = (username?: string | null): string => {
+        const key = String(username || '').trim().toLowerCase()
+        if (!key) return ''
+        return groupNicknames.get(key) || ''
       }
 
       // 获取当前用户 wxid，用于识别"自己"
@@ -5113,7 +5134,7 @@ class ChatService {
         // 特判：如果是当前用户自己（contact 表通常不包含自己）
         if (myWxid && (username === myWxid || username === cleanedMyWxid)) {
           // 先查群昵称中是否有自己
-          const myGroupNick = groupNicknames[username]
+          const myGroupNick = lookupGroupNickname(username) || lookupGroupNickname(myWxid)
           if (myGroupNick) return myGroupNick
           // 尝试从缓存获取自己的昵称
           const cached = this.avatarCache.get(username) || this.avatarCache.get(myWxid)
@@ -5122,7 +5143,7 @@ class ChatService {
         }
 
         // 先查群昵称
-        const groupNick = groupNicknames[username]
+        const groupNick = lookupGroupNickname(username)
         if (groupNick) return groupNick
 
         // 再查联系人信息

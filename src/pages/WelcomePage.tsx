@@ -13,6 +13,7 @@ import './WelcomePage.scss'
 
 const isMac = navigator.userAgent.toLowerCase().includes('mac')
 const isLinux = navigator.userAgent.toLowerCase().includes('linux')
+const isWindows = !isMac && !isLinux
 
 const dbDirName = isMac ? '2.0b4.0.9 目录' : 'xwechat_files 目录'
 const dbPathPlaceholder = isMac
@@ -45,6 +46,19 @@ const formatDbKeyFailureMessage = (error?: string, logs?: string[]): string => {
   if (tailLogs.length === 0) return base
   return `${base}；最近状态：${tailLogs.join(' | ')}`
 }
+
+const normalizeDbKeyStatusMessage = (message: string): string => {
+  if (isWindows && message.includes('Hook安装成功')) {
+    return '已准备就绪，现在登录微信或退出登录后重新登录微信'
+  }
+  return message
+}
+
+const isDbKeyReadyMessage = (message: string): boolean => (
+  message.includes('现在可以登录')
+  || message.includes('Hook安装成功')
+  || message.includes('已准备就绪，现在登录微信或退出登录后重新登录微信')
+)
 
 function WelcomePage({ standalone = false }: WelcomePageProps) {
   const navigate = useNavigate()
@@ -139,8 +153,9 @@ function WelcomePage({ standalone = false }: WelcomePageProps) {
 
   useEffect(() => {
     const removeDb = window.electronAPI.key.onDbKeyStatus((payload: { message: string; level: number }) => {
-      setDbKeyStatus(payload.message)
-      if (payload.message.includes('现在可以登录') || payload.message.includes('Hook安装成功')) {
+      const normalizedMessage = normalizeDbKeyStatusMessage(payload.message)
+      setDbKeyStatus(normalizedMessage)
+      if (isDbKeyReadyMessage(normalizedMessage)) {
         window.electronAPI.notification?.show({
           title: 'WeFlow 准备就绪',
           content: '现在可以登录微信了',
@@ -761,8 +776,7 @@ function WelcomePage({ standalone = false }: WelcomePageProps) {
                   )}
                 </div>
 
-                {dbKeyStatus && <div className={`status-message ${dbKeyStatus.includes('现在可以登录') || dbKeyStatus.includes('Hook安装成功') ? 'is-success' : ''}`}>{dbKeyStatus}</div>}
-                <div className="field-hint">点击自动获取后微信将重启，请留意弹窗提示</div>
+                {dbKeyStatus && <div className={`status-message ${isDbKeyReadyMessage(dbKeyStatus) ? 'is-success' : ''}`}>{dbKeyStatus}</div>}
               </div>
             )}
 

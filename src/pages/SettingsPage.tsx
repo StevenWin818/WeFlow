@@ -1061,9 +1061,9 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
         ))}
       </div>
 
-      <div className="form-group">
-        <label>引用样式</label>
-        <span className="form-hint">选择聊天中引用消息与正文的上下顺序，右侧预览会同步展示布局差异。</span>
+      <div className="form-group quote-layout-group">
+        <label>引用消息样式</label>
+        <span className="form-hint">选择聊天中引用消息与正文的上下顺序，下方预览会同步展示布局差异。</span>
         <div className="quote-layout-picker" role="radiogroup" aria-label="引用样式选择">
           {[
             {
@@ -1080,15 +1080,7 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
             }
           ].map(option => {
             const selected = quoteLayout === option.value
-            const quotePreview = (
-              <div className="quote-layout-preview-quote">
-                <span className="quote-layout-preview-sender">张三</span>
-                <span className="quote-layout-preview-text">这是一条被引用的消息</span>
-              </div>
-            )
-            const messagePreview = (
-              <div className="quote-layout-preview-message">这是当前发送的回复内容</div>
-            )
+            const isQuoteBottom = option.value === 'quote-bottom'
 
             return (
               <button
@@ -1104,27 +1096,37 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
                 role="radio"
                 aria-checked={selected}
               >
-                <div className="quote-layout-card-header">
+                <span className={`quote-layout-card-check ${selected ? 'active' : ''}`} aria-hidden="true" />
+                <div className="quote-layout-preview-shell">
+                  <div className="quote-layout-preview-chat">
+                    <div className="message-bubble sent">
+                      <div className={`bubble-content ${isQuoteBottom ? 'quote-layout-bottom' : 'quote-layout-top'}`}>
+                        {isQuoteBottom ? (
+                          <>
+                            <div className="message-text">拍得真不错!</div>
+                            <div className="quoted-message">
+                              <span className="quoted-sender">张三</span>
+                              <span className="quoted-text">那天去爬山的照片...</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="quoted-message">
+                              <span className="quoted-sender">张三</span>
+                              <span className="quoted-text">那天去爬山的照片...</span>
+                            </div>
+                            <div className="message-text">拍得真不错!</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="quote-layout-card-footer">
                   <div className="quote-layout-card-title-group">
                     <span className="quote-layout-card-title">{option.label}</span>
                     <span className="quote-layout-card-desc">{option.description}</span>
                   </div>
-                  <span className={`quote-layout-card-check ${selected ? 'active' : ''}`}>
-                    <Check size={14} />
-                  </span>
-                </div>
-                <div className={`quote-layout-preview ${option.value}`}>
-                  {option.value === 'quote-bottom' ? (
-                    <>
-                      {messagePreview}
-                      {quotePreview}
-                    </>
-                  ) : (
-                    <>
-                      {quotePreview}
-                      {messagePreview}
-                    </>
-                  )}
                 </div>
               </button>
             )
