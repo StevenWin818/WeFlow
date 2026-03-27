@@ -49,6 +49,22 @@ jobs:
         run: |
           npx electron-builder --mac dmg --arm64 --publish always
 
+      - name: Inject minimumVersion into latest yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          REPO=${{ github.repository }}
+          MINIMUM_VERSION="4.1.7"
+          for YML_FILE in latest-mac.yml latest-arm64-mac.yml; do
+            gh release download "$TAG" --repo "$REPO" --pattern "$YML_FILE" --output "/tmp/$YML_FILE" 2>/dev/null || continue
+            if ! grep -q 'minimumVersion' "/tmp/$YML_FILE"; then
+              echo "minimumVersion: $MINIMUM_VERSION" >> "/tmp/$YML_FILE"
+            fi
+            gh release upload "$TAG" --repo "$REPO" "/tmp/$YML_FILE" --clobber
+          done
+
   release-linux:
     runs-on: ubuntu-latest
 
@@ -84,6 +100,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npx electron-builder --linux --publish always
+
+      - name: Inject minimumVersion into latest yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          REPO=${{ github.repository }}
+          MINIMUM_VERSION="4.1.7"
+          gh release download "$TAG" --repo "$REPO" --pattern "latest-linux.yml" --output "/tmp/latest-linux.yml" 2>/dev/null
+          if [ -f /tmp/latest-linux.yml ] && ! grep -q 'minimumVersion' /tmp/latest-linux.yml; then
+            echo "minimumVersion: $MINIMUM_VERSION" >> /tmp/latest-linux.yml
+            gh release upload "$TAG" --repo "$REPO" /tmp/latest-linux.yml --clobber
+          fi
 
   release:
     runs-on: windows-latest
@@ -121,6 +151,20 @@ jobs:
         run: |
           npx electron-builder --win nsis --x64 --publish always '--config.artifactName=${productName}-${version}-x64-Setup.${ext}'
 
+      - name: Inject minimumVersion into latest yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          REPO=${{ github.repository }}
+          MINIMUM_VERSION="4.1.7"
+          gh release download "$TAG" --repo "$REPO" --pattern "latest.yml" --output "/tmp/latest.yml" 2>/dev/null
+          if [ -f /tmp/latest.yml ] && ! grep -q 'minimumVersion' /tmp/latest.yml; then
+            echo "minimumVersion: $MINIMUM_VERSION" >> /tmp/latest.yml
+            gh release upload "$TAG" --repo "$REPO" /tmp/latest.yml --clobber
+          fi
+
   release-windows-arm64:
     runs-on: windows-latest
 
@@ -156,6 +200,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npx electron-builder --win nsis --arm64 --publish always '--config.publish.channel=latest-arm64' '--config.artifactName=${productName}-${version}-arm64-Setup.${ext}'
+
+      - name: Inject minimumVersion into latest yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          REPO=${{ github.repository }}
+          MINIMUM_VERSION="4.1.7"
+          gh release download "$TAG" --repo "$REPO" --pattern "latest-arm64.yml" --output "/tmp/latest-arm64.yml" 2>/dev/null
+          if [ -f /tmp/latest-arm64.yml ] && ! grep -q 'minimumVersion' /tmp/latest-arm64.yml; then
+            echo "minimumVersion: $MINIMUM_VERSION" >> /tmp/latest-arm64.yml
+            gh release upload "$TAG" --repo "$REPO" /tmp/latest-arm64.yml --clobber
+          fi
 
   update-release-notes:
     runs-on: ubuntu-latest

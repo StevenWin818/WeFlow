@@ -1200,7 +1200,8 @@ function registerIpcHandlers() {
           return {
             hasUpdate: true,
             version: latestVersion,
-            releaseNotes: normalizeReleaseNotes(result.updateInfo.releaseNotes)
+            releaseNotes: normalizeReleaseNotes(result.updateInfo.releaseNotes),
+            minimumVersion: (result.updateInfo as any).minimumVersion
           }
         }
       }
@@ -2661,7 +2662,8 @@ function checkForUpdatesOnStartup() {
           // 通知渲染进程有新版本
           mainWindow.webContents.send('app:updateAvailable', {
             version: latestVersion,
-            releaseNotes: normalizeReleaseNotes(result.updateInfo.releaseNotes)
+            releaseNotes: normalizeReleaseNotes(result.updateInfo.releaseNotes),
+            minimumVersion: (result.updateInfo as any).minimumVersion
           })
         }
       }
