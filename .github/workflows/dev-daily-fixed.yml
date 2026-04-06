@@ -55,6 +55,8 @@ jobs:
             gh release delete "$FIXED_DEV_TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
           fi
           gh release create "$FIXED_DEV_TAG" --repo "$GITHUB_REPOSITORY" --title "Daily Dev Build" --notes "开发版发布页" --prerelease --target "$TARGET_BRANCH"
+          RELEASE_REST_ID="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$FIXED_DEV_TAG" --jq '.id')"
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_REST_ID" -f draft=false -f prerelease=true >/dev/null
 
   dev-mac-arm64:
     needs: prepare
@@ -328,3 +330,6 @@ jobs:
           EOF
 
           gh release edit "$TAG" --repo "$REPO" --title "Daily Dev Build" --notes-file dev_release_notes.md --prerelease
+          RELEASE_REST_ID="$(gh api "repos/$REPO/releases/tags/$TAG" --jq '.id')"
+          gh api --method PATCH "repos/$REPO/releases/$RELEASE_REST_ID" -f draft=false -f prerelease=true >/dev/null
+          gh release view "$TAG" --repo "$REPO" --json isDraft,isPrerelease,url
