@@ -2872,7 +2872,7 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
               type="password"
               className="field-input"
               style={{ width: '100%' }}
-              placeholder="110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
+              placeholder="在此处填入你的 Telegram Bot Token"
               value={aiInsightTelegramToken}
               onChange={(e) => {
                 const val = e.target.value
